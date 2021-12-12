@@ -20,10 +20,10 @@ export class UserController {
 
   @MessagePattern(Patterns.CREATE_USER)
   async createUser(
-    @Payload() args: UserCreateDto,
+    @Payload() { userArgs, profileArgs }: UserCreateDto,
     @Ctx() context: RmqContext,
   ): Promise<UserResponse> {
-    const user = await this.userService.createUser(args);
+    const user = await this.userService.createUser(userArgs, profileArgs);
     if (!user) {
       //implement errorLog Microservice
       sendAck(context);

@@ -1,20 +1,48 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { User } from '@schemas/user.schema';
 import { UserRepository } from '@repositories/user.repository';
-import { UserCreateDto } from '@dtos/user.create.dto';
+import { IUserCreateDto, UserCreateDto } from '@dtos/user.create.dto';
 import { hash, compare } from '@helpers/hash';
 import { UserGetUserWithRptDto } from '@dtos/user.get_w_token.dto';
 import { UserUpdateProfileDto } from '@dtos/user.update_profile.dto';
-import { UserChangePasswordDto } from '@dtos/user.change_password';
 import { UserLoginDto } from '@dtos/user.login.dto';
+import { ClientProxy } from '@nestjs/microservices';
+import { ProfileResponse } from '@responses/profile.response';
+import { Patterns } from '@patterns';
+import { ProfileCreateDTO } from '@dtos/profile.create.dto';
+import { lastValueFrom } from 'rxjs';
 
 @Injectable()
 export class UserService {
-  constructor(private readonly userRepository: UserRepository) {}
+  constructor(
+    private readonly userRepository: UserRepository,
+    @Inject('PROFILE_SERVICE') private readonly profileService: ClientProxy,
+  ) {}
 
-  async createUser(args: UserCreateDto): Promise<User> {
-    if (args.password) args.password = await hash(args.password);
-    return await this.userRepository.createUser(args);
+  async createUser(
+    userArgs: IUserCreateDto,
+    profileArgs: ProfileCreateDTO,
+  ): Promise<User> {
+    if (userArgs.password) userArgs.password = await hash(userArgs.password);
+    const createdUser = await this.userRepository.createUser(userArgs);
+    profileArgs.userId = createdUser.id;
+
+    const profileRes = await this.profileService.send<ProfileResponse>(
+      Patterns.PROFILE_CREATE,
+      profileArgs,
+    );
+
+    const profileData = await lastValueFrom(profileRes);
+    if (profileData.error) {
+      return createdUser;
+    }
+
+    const user = await this.userRepository.updateUserProfileId({
+      profileId: profileData.profile.id,
+      userId: createdUser.id,
+    });
+
+    return user;
   }
 
   async getUserWithEmail(email: string): Promise<User> {
@@ -30,7 +58,12 @@ export class UserService {
   }
 
   async updateUserProfileId(args: UserUpdateProfileDto): Promise<User> {
-    //implement check profile
+    const profileResponse = await this.profileService.send<ProfileResponse>(
+      Patterns.PROFILE_GET_WITH_ID,
+      {
+        id: args.profileId,
+      },
+    );
     return await this.updateUserProfileId(args);
   }
 

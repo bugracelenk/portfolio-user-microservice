@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument } from '@schemas/user.schema';
-import { UserCreateDto } from '@dtos/user.create.dto';
+import { IUserCreateDto, UserCreateDto } from '@dtos/user.create.dto';
 import { UserUpdateProfileDto } from '@dtos/user.update_profile.dto';
 import { UserChangePasswordDto } from '@dtos/user.change_password';
 import { UserUpdateResetTokenDto } from '@dtos/user.reset_password.dto';
@@ -14,7 +14,7 @@ export class UserRepository {
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
   ) {}
 
-  async createUser(args: UserCreateDto): Promise<User> {
+  async createUser(args: IUserCreateDto): Promise<User> {
     return await this.userModel.create(args);
   }
 

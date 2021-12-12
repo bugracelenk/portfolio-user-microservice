@@ -25,6 +25,7 @@
       "@dtos/*": ["src/dtos/*"],
       "@helpers/*": ["src/helpers/*"],
       "@responses/*": ["src/responses/*"],
+      "@interfaces/*": ["src/interfaces/*"],
       "@patterns": ["src/patterns"]
     }
   }
