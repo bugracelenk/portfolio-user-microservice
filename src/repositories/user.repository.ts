@@ -91,4 +91,13 @@ export class UserRepository {
       .findOne(args)
       .select('email username id profileId');
   }
+
+  async updateGoogleToken(
+    userId: string,
+    googleAccessToken: string,
+  ): Promise<User> {
+    return await this.userModel.findByIdAndUpdate(userId, {
+      $set: { googleAccessToken },
+    });
+  }
 }

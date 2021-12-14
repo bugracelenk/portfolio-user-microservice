@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { User } from '@schemas/user.schema';
 import { UserRepository } from '@repositories/user.repository';
 import { IUserCreateDto, UserCreateDto } from '@dtos/user.create.dto';
@@ -124,7 +124,27 @@ export class UserService {
   async googleLogin(args: UserGoogleLoginDto): Promise<string> {
     const user = await this.userRepository.getWithGoogleToken(args);
     if (!user) {
-      return null;
+      const withEmail = await this.userRepository.getUserWithEmail(args.email);
+      if (withEmail) {
+        const updatedUser = await this.userRepository.updateGoogleToken(
+          withEmail.id,
+          args.googleAccessToken,
+        );
+
+        if (!updatedUser) {
+          return null;
+        }
+
+        return await this.jwtService.signAsync(
+          {
+            username: withEmail.username,
+            email: args.email,
+            profileId: withEmail.profileId,
+            googleAccessToken: args.googleAccessToken,
+          },
+          { expiresIn: '365d', secret: process.env.JWT_SERVICE },
+        );
+      }
     }
 
     return await this.jwtService.signAsync(
