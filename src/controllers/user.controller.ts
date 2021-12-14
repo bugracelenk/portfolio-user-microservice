@@ -13,6 +13,7 @@ import { UserChangePasswordDto } from '@dtos/user.change_password';
 import { UserLoginDto } from '@dtos/user.login.dto';
 import { UserResponse } from '@responses/user.response';
 import { Patterns } from '@patterns';
+import { UserGoogleLoginDto } from '@dtos/user.google_login.dto';
 
 @Controller()
 export class UserController {
@@ -29,7 +30,7 @@ export class UserController {
       sendAck(context);
       return {
         status: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: 'User create error!',
+        error: 'User create error!',
       };
     }
     sendAck(context);
@@ -194,7 +195,7 @@ export class UserController {
       sendAck(context);
       return {
         status: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: 'USER_SSO_LOGIN',
+        error: 'USER_SSO_LOGIN',
       };
     }
 
@@ -203,6 +204,26 @@ export class UserController {
       status: token.includes('Error: ')
         ? HttpStatus.UNAUTHORIZED
         : HttpStatus.OK,
+      token,
+    };
+  }
+
+  @MessagePattern(Patterns.GOOGLE_LOGIN)
+  async googleLogin(
+    @Payload() args: UserGoogleLoginDto,
+    @Ctx() context: RmqContext,
+  ): Promise<UserResponse> {
+    const token = await this.userService.googleLogin(args);
+    if (!token) {
+      sendAck(context);
+      return {
+        status: HttpStatus.UNAUTHORIZED,
+      };
+    }
+
+    sendAck(context);
+    return {
+      status: HttpStatus.OK,
       token,
     };
   }

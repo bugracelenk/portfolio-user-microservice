@@ -12,6 +12,7 @@ import { Patterns } from '@patterns';
 import { ProfileCreateDTO } from '@dtos/profile.create.dto';
 import { lastValueFrom } from 'rxjs';
 import { JwtService } from '@nestjs/jwt';
+import { UserGoogleLoginDto } from '@dtos/user.google_login.dto';
 
 @Injectable()
 export class UserService {
@@ -107,6 +108,23 @@ export class UserService {
 
     if (result === undefined || result === null) {
       return 'Error: Not Authorized';
+    }
+
+    return await this.jwtService.signAsync(
+      {
+        username: user.username,
+        email: user.email,
+        profileId: user.profileId,
+        googleAccessToken: user.gooogleAccessToken,
+      },
+      { expiresIn: '365d', secret: process.env.JWT_SERVICE },
+    );
+  }
+
+  async googleLogin(args: UserGoogleLoginDto): Promise<string> {
+    const user = await this.userRepository.getWithGoogleToken(args);
+    if (!user) {
+      return null;
     }
 
     return await this.jwtService.signAsync(

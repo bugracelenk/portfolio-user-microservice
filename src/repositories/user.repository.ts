@@ -7,6 +7,7 @@ import { UserUpdateProfileDto } from '@dtos/user.update_profile.dto';
 import { UserChangePasswordDto } from '@dtos/user.change_password';
 import { UserUpdateResetTokenDto } from '@dtos/user.reset_password.dto';
 import { UserGetUserWithRptDto } from '@dtos/user.get_w_token.dto';
+import { UserGoogleLoginDto } from '@dtos/user.google_login.dto';
 
 @Injectable()
 export class UserRepository {
@@ -21,7 +22,7 @@ export class UserRepository {
   async getUserWithEmail(email: string): Promise<User> {
     return await this.userModel
       .findOne({ email })
-      .select('googleAccessToken email id password')
+      .select('googleAccessToken email id password profileId')
       .exec();
   }
 
@@ -83,5 +84,11 @@ export class UserRepository {
         { new: true, upsert: true },
       )
       .select('-password -googleAccessToken');
+  }
+
+  async getWithGoogleToken(args: UserGoogleLoginDto): Promise<User> {
+    return await this.userModel
+      .findOne(args)
+      .select('email username id profileId');
   }
 }
