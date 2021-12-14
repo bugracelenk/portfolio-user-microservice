@@ -11,18 +11,20 @@ import { ProfileResponse } from '@responses/profile.response';
 import { Patterns } from '@patterns';
 import { ProfileCreateDTO } from '@dtos/profile.create.dto';
 import { lastValueFrom } from 'rxjs';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class UserService {
   constructor(
     private readonly userRepository: UserRepository,
     @Inject('PROFILE_SERVICE') private readonly profileService: ClientProxy,
+    private jwtService: JwtService,
   ) {}
 
   async createUser(
     userArgs: IUserCreateDto,
     profileArgs: ProfileCreateDTO,
-  ): Promise<User> {
+  ): Promise<string> {
     if (userArgs.password) userArgs.password = await hash(userArgs.password);
     const createdUser = await this.userRepository.createUser(userArgs);
     profileArgs.userId = createdUser.id;
@@ -34,7 +36,7 @@ export class UserService {
 
     const profileData = await lastValueFrom(profileRes);
     if (profileData.error) {
-      return createdUser;
+      return `Error: ${profileData.error}`;
     }
 
     const user = await this.userRepository.updateUserProfileId({
@@ -42,7 +44,17 @@ export class UserService {
       userId: createdUser.id,
     });
 
-    return user;
+    let token = {
+      username: user.username,
+      email: user.email,
+      profileId: user.profileId,
+      googleAccessToken: user.gooogleAccessToken,
+    };
+
+    return await this.jwtService.signAsync(token, {
+      expiresIn: '365d',
+      secret: process.env.JWT_SECRET,
+    });
   }
 
   async getUserWithEmail(email: string): Promise<User> {
@@ -89,8 +101,22 @@ export class UserService {
     return await this.userRepository.updatePassword(args);
   }
 
-  async comparePassword({ email, password }: UserLoginDto): Promise<boolean> {
+  async ssoLogin({ email, password }: UserLoginDto): Promise<string> {
     const user = await this.userRepository.getUserWithEmail(email);
-    return await compare(password, user.password);
+    const result = await compare(password, user.password);
+
+    if (result === undefined || result === null) {
+      return 'Error: Not Authorized';
+    }
+
+    return await this.jwtService.signAsync(
+      {
+        username: user.username,
+        email: user.email,
+        profileId: user.profileId,
+        googleAccessToken: user.gooogleAccessToken,
+      },
+      { expiresIn: '365d', secret: process.env.JWT_SERVICE },
+    );
   }
 }

@@ -23,8 +23,8 @@ export class UserController {
     @Payload() { userArgs, profileArgs }: UserCreateDto,
     @Ctx() context: RmqContext,
   ): Promise<UserResponse> {
-    const user = await this.userService.createUser(userArgs, profileArgs);
-    if (!user) {
+    const token = await this.userService.createUser(userArgs, profileArgs);
+    if (!token) {
       //implement errorLog Microservice
       sendAck(context);
       return {
@@ -32,12 +32,12 @@ export class UserController {
         message: 'User create error!',
       };
     }
-
-    delete user.password;
     sendAck(context);
     return {
-      status: HttpStatus.OK,
-      message: 'User created successfully',
+      status: token.includes('Error: ')
+        ? HttpStatus.INTERNAL_SERVER_ERROR
+        : HttpStatus.OK,
+      token,
     };
   }
 
@@ -183,25 +183,27 @@ export class UserController {
     };
   }
 
-  @MessagePattern(Patterns.COMPARE_PASSWORD)
+  @MessagePattern(Patterns.SSO_LOGIN)
   async ssoLogin(
     @Payload() args: UserLoginDto,
     @Ctx() context: RmqContext,
   ): Promise<UserResponse> {
-    const compareResult = await this.userService.comparePassword(args);
+    const token = await this.userService.ssoLogin(args);
 
-    if (compareResult === null || compareResult === undefined) {
+    if (!token) {
       sendAck(context);
       return {
         status: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: 'USER_COMPARE_ERROR',
+        message: 'USER_SSO_LOGIN',
       };
     }
 
     sendAck(context);
     return {
-      status: HttpStatus.OK,
-      compareResult,
+      status: token.includes('Error: ')
+        ? HttpStatus.UNAUTHORIZED
+        : HttpStatus.OK,
+      token,
     };
   }
 }
